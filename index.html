@@ -55,6 +55,14 @@ h1+.sub{margin-bottom:14px}.navb{display:flex;gap:8px;justify-content:center;mar
 .gh{text-align:center;color:var(--deep);font:400 42px 'Pinyon Script',cursive}
 .gal{columns:2 220px;column-gap:16px;margin:12px 0}.card{break-inside:avoid;background:#fffaf0;color:#7a4a5c;padding:8px 8px 14px;margin:0 0 16px;box-shadow:0 5px 12px #8f587055;transform:rotate(var(--rot,0deg))}
 .card img{width:100%;display:block}.card b{display:block;margin-top:8px}.card p{margin:4px 0 0;font-size:13px;white-space:pre-wrap;word-break:break-word}.card small{opacity:.6;font-size:11px}
+.cm{margin-top:8px;border-top:1px dashed #f2c6d4;padding-top:6px}
+.cmr{position:relative;font-size:12px;padding:4px 20px 4px 0;word-break:break-word}
+.cn{font-weight:700;color:#e96ca5;margin-right:6px}
+.cx{position:absolute;right:0;top:3px;border:0;background:none;color:#c58a9e;font-size:12px;padding:2px 4px;cursor:pointer}
+.cmf{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;align-items:center}
+.cmf input:first-child{width:84px}
+.cmf input:nth-child(2){flex:1;min-width:90px;width:auto}
+.cm small{display:block;margin-top:4px}
 .modal{position:fixed;inset:0;background:#5a2d4488;display:grid;place-items:center;z-index:50;padding:16px}.modal[hidden]{display:none}
 .mbox{max-width:420px;width:100%;max-height:92vh;overflow:auto}.mbox img{width:100%;border-radius:10px;margin-bottom:10px}
 textarea{width:100%;height:80px;margin:8px 0;border:1px solid var(--line);border-radius:10px;padding:7px 10px;background:var(--card);resize:vertical}
@@ -386,6 +394,39 @@ async function addPost(p,tok){if(SB.url)return rpc('add_post',{p_title:p.title,p
   const a=jget(LSK,'[]'),id=Date.now();a.unshift(Object.assign({id,created_at:new Date().toISOString()},p));lsSet(a);return id}
 async function delPost(id,tok){if(SB.url){if(!await rpc('delete_post',{p_id:id,p_token:tok}))throw 0;return}lsSet(jget(LSK,'[]').filter(p=>p.id!==id))}
 async function updPost(id,tok,t,b){if(SB.url){if(!await rpc('update_post',{p_id:id,p_token:tok,p_title:t,p_body:b}))throw 0;return}const a=jget(LSK,'[]'),p=a.find(x=>x.id===id);if(p){p.title=t;p.body=b}lsSet(a)}
+/* ---------- comments ---------- */
+const CK='sweets_comments',CMK='sweets_cmine';
+const cmine=()=>jget(CMK,'{}'),setCmine=m=>{try{localStorage.setItem(CMK,JSON.stringify(m))}catch(e){}};
+async function listCm(pid,rm){if(SB.url)return rpc('list_comments',{p_post_id:pid,p_room:rm});return jget(CK,'[]').filter(c=>c.post_id===pid)}
+async function addCm(pid,rm,name,body,tok){if(SB.url)return rpc('add_comment',{p_post_id:pid,p_room:rm,p_name:name,p_body:body,p_token_hash:await sha(tok)});
+  const a=jget(CK,'[]'),id=Date.now();a.push({id,post_id:pid,name,body,created_at:new Date().toISOString()});try{localStorage.setItem(CK,JSON.stringify(a.slice(-300)))}catch(e){}return id}
+async function delCm(id,tok){if(SB.url){if(!await rpc('delete_comment',{p_id:id,p_token:tok}))throw 0;return}
+  try{localStorage.setItem(CK,JSON.stringify(jget(CK,'[]').filter(c=>c.id!==id)))}catch(e){}}
+function cmBox(p,rm,ptok){
+  const btn=mkb('💬 댓글'),box=document.createElement('div'),list=document.createElement('div'),form=document.createElement('div'),
+    nm=document.createElement('input'),tx=document.createElement('input'),go=mkb('등록'),msg=document.createElement('small');
+  box.className='cm';box.hidden=true;form.className='cmf';
+  nm.type='text';nm.maxLength=20;nm.placeholder='닉네임';tx.type='text';tx.maxLength=200;tx.placeholder='댓글을 남겨 보세요 ♡';
+  try{nm.value=localStorage.getItem('sweets_nick')||''}catch(e){}
+  form.append(nm,tx,go);box.append(list,form,msg);let loaded=false;
+  const count=()=>{const n=list.children.length;btn.textContent=n?'💬 댓글 '+n:'💬 댓글';if(loaded&&!n)msg.textContent='첫 댓글을 남겨 보세요 ♡'};
+  const row=c=>{const r=document.createElement('div'),h=document.createElement('span'),t=document.createElement('span');r.className='cmr';h.className='cn';h.textContent=c.name||'익명';t.textContent=c.body;r.append(h,t);
+    const ct=cmine()[c.id]||ptok;
+    if(ct){const x=document.createElement('button');x.className='cx';x.textContent='✕';x.title='삭제';
+      x.onclick=async()=>{if(!confirm('이 댓글을 삭제할까요?'))return;try{await delCm(c.id,ct);const m=cmine();delete m[c.id];setCmine(m);r.remove();count()}catch(e){msg.textContent='삭제하지 못했어요. 잠시 후 다시 시도해 주세요.'}};r.append(x)}
+    return r};
+  btn.onclick=async()=>{box.hidden=!box.hidden;if(box.hidden||loaded)return;
+    try{const rows=await listCm(p.id,rm);rows.forEach(c=>list.appendChild(row(c)));loaded=true;msg.textContent='';count()}catch(e){msg.textContent='댓글을 불러오지 못했어요.'}};
+  go.onclick=async()=>{const body=tx.value.trim(),name=nm.value.trim()||null;if(!body){msg.textContent='내용을 입력해 주세요.';return}
+    let last=0;try{last=+localStorage.getItem('sweets_clast')||0}catch(e){}if(Date.now()-last<10000){msg.textContent='10초 뒤에 다시 남길 수 있어요.';return}
+    go.disabled=true;
+    try{const tok=hex(),id=await addCm(p.id,rm,name,body,tok);const m=cmine();m[id]=tok;setCmine(m);
+      try{localStorage.setItem('sweets_clast',Date.now());localStorage.setItem('sweets_nick',nm.value.trim())}catch(e){}
+      list.appendChild(row({id,name,body}));tx.value='';msg.textContent='';loaded=true;count()}
+    catch(e){msg.textContent='올리지 못했어요. 잠시 후 다시 시도해 주세요.'}
+    go.disabled=false};
+  tx.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing)go.click()};
+  return[btn,box]}
 const mkb=t=>{const b=document.createElement('button');b.className='chip';b.textContent=t;return b};
 function card(p){const d=document.createElement('div');d.className='card';d.style.setProperty('--rot',((p.id*7%5)-2)*.8+'deg');
   if(okImg(p.image)){const i=new Image();i.src=p.image;i.alt=p.title||'';d.appendChild(i)}
@@ -393,6 +434,7 @@ function card(p){const d=document.createElement('div');d.className='card';d.styl
   const fill=()=>{t.textContent=p.title||'';b.textContent=p.body||'';t.style.display=p.title?'block':'none';b.style.display=p.body?'block':'none'};
   fill();s.textContent=new Date(p.created_at).toLocaleDateString('ko-KR');d.append(t,b,s);
   const tok=mine()[p.id];
+  const cmr=document.createElement('div'),[cb,cbox]=cmBox(p,gtab==='priv'?room:null,tok);cmr.className='cact';cmr.append(cb);d.append(cmr,cbox);
   if(tok){const bar=document.createElement('div'),be=mkb('수정'),bd=mkb('삭제');bar.className='cact';bar.append(be,bd);d.append(bar);
     bd.onclick=async()=>{if(!confirm('이 게시글을 삭제할까요? 되돌릴 수 없어요.'))return;try{await delPost(p.id,tok);const m=mine();delete m[p.id];setMine(m);d.remove()}catch(e){alert('삭제하지 못했어요. 잠시 후 다시 시도해 주세요.')}};
     be.onclick=()=>{const ti=document.createElement('input'),ta=document.createElement('textarea'),eb=document.createElement('div'),ok=mkb('저장'),no=mkb('취소');
