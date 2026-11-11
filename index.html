@@ -368,7 +368,7 @@ $('camStart').onclick=async()=>{try{stream=await navigator.mediaDevices.getUserM
 $('camClose').onclick=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('cameraBox').style.display='none'};
 $('capture').onclick=()=>{const v=$('video'),c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);$('camClose').click();loadPhoto(c.toDataURL('image/png'))};
 /* ---------- gallery ---------- */
-const SB={url:'',key:''}; // ← Supabase Project URL / anon public key 를 여기에 넣으면 공개·비공개 게시판이 켜져요
+const SB={url:'https://mnsctutjzxxamulnarwn.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1uc2N0dXRqenh4YW11bG5hcnduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQzNjY0ODgsImV4cCI6MjEwOTk0MjQ4OH0.ZKPQLaQR6gJYENJcXSUVixKwoYVO0KYQodS20sru6qU'}; // ← Supabase Project URL / anon public key 를 여기에 넣으면 공개·비공개 게시판이 켜져요
 const LSK='sweets_posts',MK='sweets_mine',PG=12,okImg=v=>/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(v||'');
 let gp=0,gtab='pub',room=null,roomLen=0,roomPin='';
 const hd=()=>({apikey:SB.key,Authorization:'Bearer '+SB.key});
